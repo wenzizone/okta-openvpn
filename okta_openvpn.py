@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # vim: set noexpandtab:ts=4
 
 # This Source Code Form is subject to the terms of the Mozilla Public
@@ -6,8 +6,8 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 # Contributors: gdestuynder@mozilla.com
 
-import ConfigParser
-from ConfigParser import MissingSectionHeaderError
+import configparser
+from configparser import MissingSectionHeaderError
 import base64
 import hashlib
 import json
@@ -18,7 +18,7 @@ import platform
 import stat
 import sys
 import time
-import urlparse
+from urllib.parse import urlparse, urlunparse
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -82,7 +82,7 @@ class PublicKeyPinsetConnectionPool(urllib3.HTTPSConnectionPool):
             serialization.Encoding.DER,
             serialization.PublicFormat.SubjectPublicKeyInfo)
         public_key_sha256 = hashlib.sha256(public_key_raw).digest()
-        public_key_sha256_base64 = base64.b64encode(public_key_sha256)
+        public_key_sha256_base64 = base64.b64encode(public_key_sha256).decode('ascii')
 
         if public_key_sha256_base64 not in self.pinset:
             pin_failure_message = (
@@ -108,15 +108,17 @@ class OktaAPIAuth(object):
         self.password = password
         self.client_ipaddr = client_ipaddr
         self.passcode = None
-        self.okta_urlparse = urlparse.urlparse(okta_url)
-        self.mfa_push_delay_secs = mfa_push_delay_secs
-        self.mfa_push_max_retries = mfa_push_max_retries
+        self.okta_urlparse = urlparse(okta_url)
+        if mfa_push_delay_secs:
+            self.mfa_push_delay_secs = int(mfa_push_delay_secs)
+        if mfa_push_max_retries:
+            self.mfa_push_max_retries = int(mfa_push_max_retries)
         if assert_pinset is None:
             assert_pinset = okta_pinset
         url_new = (self.okta_urlparse.scheme,
                    self.okta_urlparse.netloc,
                    '', '', '', '')
-        self.okta_url = urlparse.urlunparse(url_new)
+        self.okta_url = urlunparse(url_new)
         if password and len(password) > passcode_len:
             last = password[-passcode_len:]
             if last.isdigit():
@@ -275,8 +277,8 @@ class OktaOpenVPNValidator(object):
             'okta_openvpn.ini']
         cfg_path = cfg_path_defaults
         parser_defaults = {
-            'AllowUntrustedUsers': self.always_trust_username,
-            'UsernameSuffix': self.username_suffix,
+            'AllowUntrustedUsers': str(self.always_trust_username),
+            'UsernameSuffix': '',
             'MFAPushMaxRetries': self.mfa_push_max_retries,
             'MFAPushDelaySeconds': self.mfa_push_delay_secs,
             }
@@ -287,7 +289,7 @@ class OktaOpenVPNValidator(object):
         for cfg_file in cfg_path:
             if os.path.isfile(cfg_file):
                 try:
-                    cfg = ConfigParser.ConfigParser(defaults=parser_defaults)
+                    cfg = configparser.ConfigParser(defaults=parser_defaults)
                     cfg.read(cfg_file)
                     self.site_config = {
                         'okta_url': cfg.get('OktaAPI', 'Url'),

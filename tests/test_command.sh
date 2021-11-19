@@ -17,7 +17,7 @@ export auth_control_file="$(mktemp -t okta_openvpn.XXXXX)"
 export assert_pin='2hLOYtjSs5a3Jxy5GVM5EMuqa3JHhR6gM99EoaDauug='
 
 
-python okta_openvpn.py
+python3 okta_openvpn.py
 
 # Save the return value of the script
 rv=$?
