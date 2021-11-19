@@ -28,7 +28,8 @@ import urllib3
 
 from okta_pinset import okta_pinset
 
-version = "0.11.0"
+version = "0.10.2-beta"
+# OktaOpenVPN/0.10.0 (Darwin 12.4.0) CPython/2.7.5
 user_agent = ("OktaOpenVPN/{version} "
               "({system} {system_version}) "
               "{implementation}/{python_version}").format(
@@ -96,7 +97,7 @@ class PublicKeyPinsetConnectionPool(urllib3.HTTPSConnectionPool):
 
 class OktaAPIAuth(object):
     def __init__(self, okta_url, okta_token,
-                 username, password, client_ipaddr, allowed_groups,
+                 username, password, client_ipaddr,
                  mfa_push_delay_secs=None,
                  mfa_push_max_retries=None,
                  assert_pinset=None):
@@ -106,7 +107,6 @@ class OktaAPIAuth(object):
         self.username = username
         self.password = password
         self.client_ipaddr = client_ipaddr
-        self.allowed_groups = allowed_groups
         self.passcode = None
         self.okta_urlparse = urlparse.urlparse(okta_url)
         self.mfa_push_delay_secs = mfa_push_delay_secs
@@ -130,7 +130,7 @@ class OktaAPIAuth(object):
             ca_certs=certifi.where(),
         )
 
-    def okta_req(self, path, data=None):
+    def okta_req(self, path, data):
         ssws = "SSWS {token}".format(token=self.okta_token)
         headers = {
             'user-agent': user_agent,
@@ -139,38 +139,13 @@ class OktaAPIAuth(object):
             'authorization': ssws,
             }
         url = "{base}/api/v1{path}".format(base=self.okta_url, path=path)
-        if data:
-            req = self.pool.urlopen(
-                'POST',
-                url,
-                headers=headers,
-                body=json.dumps(data)
-            )
-        else:
-            req = self.pool.urlopen(
-                'GET',
-                url,
-                headers=headers
-            )
+        req = self.pool.urlopen(
+            'POST',
+            url,
+            headers=headers,
+            body=json.dumps(data)
+        )
         return json.loads(req.data)
-
-    def check_groups(self, allowed_groups):
-        if allowed_groups:
-            log.info("Found groups. Validating against:")
-            log.info(allowed_groups)
-            group_result = False
-            path = "/users/%s" % (self.username)
-            user_data = self.okta_req(path)
-            path = "/users/%s/groups" % (user_data['id'])
-            group_data = self.okta_req(path)
-            for i in group_data:
-                if i['profile']['name'] in self.allowed_groups:
-                    log.info("found allowed group: %s" % (i['profile']['name']))
-                    group_result = True
-        else:
-            log.info("No groups to validate")
-            group_result = True
-        return group_result
 
     def preauth(self):
         path = "/authn"
@@ -215,14 +190,6 @@ class OktaAPIAuth(object):
             rv = self.preauth()
         except Exception as s:
             log.error('Error connecting to the Okta API: %s', s)
-            return False
-        try:
-            group_res = self.check_groups(self.allowed_groups)
-        except Exception as s:
-            log.error('Error connecting to the Okta API: %s', s)
-            return False
-        if not group_res:
-            log.error("Username %s not a member of an allowed group!" % (username))
             return False
         # Check for erros from Okta
         if 'errorCauses' in rv:
@@ -296,7 +263,6 @@ class OktaOpenVPNValidator(object):
         self.okta_config = {}
         self.username_suffix = None
         self.always_trust_username = False
-        self.allowed_groups = None
         # These can be modified in the 'okta_openvpn.ini' file.
         # By default, we retry for 2 minutes:
         self.mfa_push_max_retries = "20"
@@ -313,7 +279,6 @@ class OktaOpenVPNValidator(object):
             'UsernameSuffix': self.username_suffix,
             'MFAPushMaxRetries': self.mfa_push_max_retries,
             'MFAPushDelaySeconds': self.mfa_push_delay_secs,
-            'AllowedGroups': self.allowed_groups,
             }
         if self.config_file:
             cfg_path = []
@@ -332,12 +297,6 @@ class OktaOpenVPNValidator(object):
                         'mfa_push_delay_secs': cfg.get('OktaAPI',
                                                        'MFAPushDelaySeconds'),
                         }
-                    trusted_groups = cfg.get('OktaAPI', 'AllowedGroups')
-                    tmp_groups = []
-                    if trusted_groups:
-                        for group in trusted_groups.split(','):
-                            tmp_groups.append(group.strip())
-                    self.site_config['allowed_groups'] = tmp_groups
                     always_trust_username = cfg.get(
                         'OktaAPI',
                         'AllowUntrustedUsers')
@@ -388,7 +347,6 @@ class OktaOpenVPNValidator(object):
             'username': username,
             'password': password,
             'client_ipaddr': client_ipaddr,
-            'allowed_groups': self.site_config['allowed_groups'],
         }
         for item in ['mfa_push_max_retries', 'mfa_push_delay_secs']:
             if item in self.site_config:
