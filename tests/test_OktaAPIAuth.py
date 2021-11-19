@@ -73,11 +73,11 @@ class TestOktaAPIAuth(OktaTestCase):
     def test_invalid_url(self):
         config = self.config
         config['okta_url'] = 'http://127.0.0.1:86753'
-        okta = OktaAPIAuth(**config)
-        auth = okta.auth()
-        self.assertEquals(auth, False)
-        last_error = self.okta_log_messages['error'][-1:][0]
-        self.assertIn('Error connecting to the Okta API', last_error)
+        try:
+            okta = OktaAPIAuth(**config)
+            self.assertFalse()
+        except ValueError:
+            pass
 
     def test_invalid_password(self):
         config = self.config

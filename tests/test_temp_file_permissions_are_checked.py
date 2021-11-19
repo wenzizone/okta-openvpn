@@ -29,7 +29,7 @@ class TestTempFilePermissions(OktaTestCase):
 
         tmp = tempfile.NamedTemporaryFile()
 
-        os.chmod(tmp.name, 0777)
+        os.chmod(tmp.name, 0o777)
 
         env = MockEnviron({
             'common_name': self.config['username'],
@@ -50,9 +50,9 @@ class TestTempFilePermissions(OktaTestCase):
     def test_control_file_bad_permissions_permutations(self):
         cfg = self.config
         modes = [
-            0606,
-            0660,
-            0622,
+            0o606,
+            0o660,
+            0o622,
             ]
         for mode in modes:
             tmp = tempfile.NamedTemporaryFile()
@@ -75,7 +75,7 @@ class TestTempFilePermissions(OktaTestCase):
 
         tmp_dir = tempfile.mkdtemp()
         tmp = tempfile.NamedTemporaryFile(dir=tmp_dir)
-        os.chmod(tmp_dir, 0777)
+        os.chmod(tmp_dir, 0o777)
         env = MockEnviron({
             'common_name': self.config['username'],
             'password': self.config['password'],
