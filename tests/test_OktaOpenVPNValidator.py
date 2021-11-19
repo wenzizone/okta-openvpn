@@ -182,7 +182,7 @@ class TestOktaAPIAuth(OktaTestCase):
         cfg = tempfile.NamedTemporaryFile()
         cfg.file.write(config_format.format(
             self.okta_url,
-            self.okta_token))
+            self.okta_token).encode())
         cfg.file.seek(0)
         env = MockEnviron({
             'common_name': self.config['username'],
@@ -209,7 +209,7 @@ class TestOktaAPIAuth(OktaTestCase):
         cfg = tempfile.NamedTemporaryFile()
         cfg.file.write(config_format.format(
             self.okta_url,
-            self.okta_token))
+            self.okta_token).encode())
         cfg.file.seek(0)
         env = MockEnviron({
             'username': self.config['username'],
@@ -238,7 +238,7 @@ class TestOktaAPIAuth(OktaTestCase):
             cfg.file.write(config_format.format(
                 self.okta_url,
                 self.okta_token,
-                val))
+                val).encode())
             cfg.file.seek(0)
             env = MockEnviron({
                 'username': self.config['username'],
@@ -307,7 +307,7 @@ class TestOktaAPIAuth(OktaTestCase):
         cfg.file.write(config_format.format(
             self.okta_url,
             self.okta_token,
-            self.username_suffix))
+            self.username_suffix).encode())
         cfg.file.seek(0)
         env = MockEnviron({
             'common_name': self.username_prefix,
@@ -327,7 +327,7 @@ class TestOktaAPIAuth(OktaTestCase):
 
     def test_with_invalid_config_file(self):
         cfg = tempfile.NamedTemporaryFile()
-        cfg.file.write('invalidconfig')
+        cfg.file.write('invalidconfig'.encode())
         cfg.file.seek(0)
         env = MockEnviron({
             'common_name': self.config['username'],
@@ -393,7 +393,7 @@ class TestOktaAPIAuth(OktaTestCase):
 
     def test_write_ro_to_control_file(self):
         tmp = tempfile.NamedTemporaryFile()
-        os.chmod(tmp.name, 0400)
+        os.chmod(tmp.name, 0o400)
         validator = OktaOpenVPNValidator()
         validator.user_valid = True
         validator.control_file = tmp.name
