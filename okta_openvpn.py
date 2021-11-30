@@ -321,7 +321,8 @@ class OktaOpenVPNValidator(object):
             log.critical('OKTA_TOKEN not defined in configuration')
             return False
         # Taken from a validated VPN client-side SSL certificate
-        username = self.env.get('common_name')
+        #username = self.env.get('common_name')
+        username = self.env.get('username')
         password = self.env.get('password')
         client_ipaddr = self.env.get('untrusted_ip', '0.0.0.0')
         # Note:
