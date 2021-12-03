@@ -19,6 +19,7 @@ import stat
 import sys
 import time
 from urllib.parse import urlparse, urlunparse
+from systemd.journal import JournaldLogHandler
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -28,7 +29,7 @@ import urllib3
 
 from okta_pinset import okta_pinset
 
-version = "0.10.2-beta"
+version = "0.11"
 # OktaOpenVPN/0.10.0 (Darwin 12.4.0) CPython/2.7.5
 user_agent = ("OktaOpenVPN/{version} "
               "({system} {system_version}) "
@@ -40,10 +41,16 @@ user_agent = ("OktaOpenVPN/{version} "
                   python_version=platform.python_version())
 log = logging.getLogger('okta_openvpn')
 log.setLevel(logging.DEBUG)
-syslog = logging.handlers.SysLogHandler()
 syslog_fmt = "%(module)s-%(processName)s[%(process)d]: %(name)s: %(message)s"
-syslog.setFormatter(logging.Formatter(syslog_fmt))
-log.addHandler(syslog)
+# Uncomment to enable logging to Journald log(systemd)
+journald_log = JournaldLogHandler()
+journald_log.setFormatter(logging.Formatter(syslog_fmt))
+log.addHandler(journald_log)
+
+# # Uncomment to enable logging to syslog
+# syslog = logging.handlers.SysLogHandler()
+# syslog.setFormatter(logging.Formatter(syslog_fmt))
+# log.addHandler(syslog)
 # # Uncomment to enable logging to STDERR
 # errlog = logging.StreamHandler()
 # errlog.setFormatter(logging.Formatter(syslog_fmt))
@@ -65,6 +72,7 @@ class ControlFilePermissionsError(Exception):
 
 
 class PublicKeyPinsetConnectionPool(urllib3.HTTPSConnectionPool):
+
     def __init__(self, *args, **kwargs):
         self.pinset = kwargs.pop('assert_pinset', None)
         super(PublicKeyPinsetConnectionPool, self).__init__(*args, **kwargs)
@@ -82,7 +90,8 @@ class PublicKeyPinsetConnectionPool(urllib3.HTTPSConnectionPool):
             serialization.Encoding.DER,
             serialization.PublicFormat.SubjectPublicKeyInfo)
         public_key_sha256 = hashlib.sha256(public_key_raw).digest()
-        public_key_sha256_base64 = base64.b64encode(public_key_sha256).decode('ascii')
+        public_key_sha256_base64 = base64.b64encode(
+            public_key_sha256).decode('ascii')
 
         if public_key_sha256_base64 not in self.pinset:
             pin_failure_message = (
@@ -96,6 +105,7 @@ class PublicKeyPinsetConnectionPool(urllib3.HTTPSConnectionPool):
 
 
 class OktaAPIAuth(object):
+
     def __init__(self, okta_url, okta_token,
                  username, password, client_ipaddr,
                  mfa_push_delay_secs=None,
@@ -139,7 +149,7 @@ class OktaAPIAuth(object):
             'content-type': 'application/json',
             'accept': 'application/json',
             'authorization': ssws,
-            }
+        }
         url = "{base}/api/v1{path}".format(base=self.okta_url, path=path)
         req = self.pool.urlopen(
             'POST',
@@ -254,6 +264,7 @@ class OktaAPIAuth(object):
 
 
 class OktaOpenVPNValidator(object):
+
     def __init__(self):
         self.cls = OktaAPIAuth
         self.username_trusted = False
@@ -281,7 +292,7 @@ class OktaOpenVPNValidator(object):
             'UsernameSuffix': '',
             'MFAPushMaxRetries': self.mfa_push_max_retries,
             'MFAPushDelaySeconds': self.mfa_push_delay_secs,
-            }
+        }
         if self.config_file:
             cfg_path = []
             cfg_path.append(self.config_file)
@@ -298,7 +309,7 @@ class OktaOpenVPNValidator(object):
                                                         'MFAPushMaxRetries'),
                         'mfa_push_delay_secs': cfg.get('OktaAPI',
                                                        'MFAPushDelaySeconds'),
-                        }
+                    }
                     always_trust_username = cfg.get(
                         'OktaAPI',
                         'AllowUntrustedUsers')
