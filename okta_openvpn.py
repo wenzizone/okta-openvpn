@@ -345,13 +345,13 @@ class OktaOpenVPNValidator(object):
                                                         'MFAPushMaxRetries'),
                         'mfa_push_delay_secs': cfg.get('OktaAPI',
                                                        'MFAPushDelaySeconds'),
-                        trusted_groups = cfg.get('OktaAPI', 'AllowedGroups')
-                        tmp_groups = []
-                        if trusted_groups:
+                    }
+                    trusted_groups = cfg.get('OktaAPI', 'AllowedGroups')
+                    tmp_groups = []
+                    if trusted_groups:
                         for group in trusted_groups.split(','):
                             tmp_groups.append(group.strip())
                         self.site_config['allowed_groups'] = tmp_groups
-                    }
                     always_trust_username = cfg.get(
                         'OktaAPI',
                         'AllowUntrustedUsers')
@@ -361,10 +361,9 @@ class OktaOpenVPNValidator(object):
                     return True
                 except MissingSectionHeaderError as e:
                     log.debug(e)
-        if 'okta_url' not in self.site_config and
-            'okta_token' not in self.site_config:
-                log.critical("Failed to load config")
-                return False
+        if 'okta_url' not in self.site_config and 'okta_token' not in self.site_config:
+            log.critical("Failed to load config")
+            return False
 
     def load_environment_variables(self):
         if 'okta_url' not in self.site_config:
