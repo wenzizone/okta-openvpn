@@ -19,6 +19,7 @@ import stat
 import sys
 import time
 from urllib.parse import urlparse, urlunparse
+from systemd.journal import JournaldLogHandler
 
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -40,10 +41,16 @@ user_agent = ("OktaOpenVPN/{version} "
                   python_version=platform.python_version())
 log = logging.getLogger('okta_openvpn')
 log.setLevel(logging.DEBUG)
-syslog = logging.handlers.SysLogHandler()
 syslog_fmt = "%(module)s-%(processName)s[%(process)d]: %(name)s: %(message)s"
-syslog.setFormatter(logging.Formatter(syslog_fmt))
-log.addHandler(syslog)
+# Uncomment to enable logging to Journald log(systemd)
+journald_log = JournaldLogHandler()
+journald_log.setFormatter(logging.Formatter(syslog_fmt))
+log.addHandler(journald_log)
+
+# # Uncomment to enable logging to syslog
+# syslog = logging.handlers.SysLogHandler()
+# syslog.setFormatter(logging.Formatter(syslog_fmt))
+# log.addHandler(syslog)
 # # Uncomment to enable logging to STDERR
 # errlog = logging.StreamHandler()
 # errlog.setFormatter(logging.Formatter(syslog_fmt))
@@ -65,6 +72,7 @@ class ControlFilePermissionsError(Exception):
 
 
 class PublicKeyPinsetConnectionPool(urllib3.HTTPSConnectionPool):
+
     def __init__(self, *args, **kwargs):
         self.pinset = kwargs.pop('assert_pinset', None)
         super(PublicKeyPinsetConnectionPool, self).__init__(*args, **kwargs)
@@ -82,7 +90,8 @@ class PublicKeyPinsetConnectionPool(urllib3.HTTPSConnectionPool):
             serialization.Encoding.DER,
             serialization.PublicFormat.SubjectPublicKeyInfo)
         public_key_sha256 = hashlib.sha256(public_key_raw).digest()
-        public_key_sha256_base64 = base64.b64encode(public_key_sha256).decode('ascii')
+        public_key_sha256_base64 = base64.b64encode(
+            public_key_sha256).decode('ascii')
 
         if public_key_sha256_base64 not in self.pinset:
             pin_failure_message = (
@@ -96,6 +105,7 @@ class PublicKeyPinsetConnectionPool(urllib3.HTTPSConnectionPool):
 
 
 class OktaAPIAuth(object):
+
     def __init__(self, okta_url, okta_token,
                  username, password, client_ipaddr, allowed_groups,
                  mfa_push_delay_secs=None,
@@ -140,7 +150,7 @@ class OktaAPIAuth(object):
             'content-type': 'application/json',
             'accept': 'application/json',
             'authorization': ssws,
-            }
+        }
         url = "{base}/api/v1{path}".format(base=self.okta_url, path=path)
         if data:
             req = self.pool.urlopen(
@@ -288,6 +298,7 @@ class OktaAPIAuth(object):
 
 
 class OktaOpenVPNValidator(object):
+
     def __init__(self):
         self.cls = OktaAPIAuth
         self.username_trusted = False
@@ -317,7 +328,7 @@ class OktaOpenVPNValidator(object):
             'MFAPushMaxRetries': self.mfa_push_max_retries,
             'MFAPushDelaySeconds': self.mfa_push_delay_secs,
             'AllowedGroups': self.allowed_groups,
-            }
+        }
         if self.config_file:
             cfg_path = []
             cfg_path.append(self.config_file)
@@ -334,13 +345,13 @@ class OktaOpenVPNValidator(object):
                                                         'MFAPushMaxRetries'),
                         'mfa_push_delay_secs': cfg.get('OktaAPI',
                                                        'MFAPushDelaySeconds'),
-                        }
-                    trusted_groups = cfg.get('OktaAPI', 'AllowedGroups')
-                    tmp_groups = []
-                    if trusted_groups:
+                        trusted_groups = cfg.get('OktaAPI', 'AllowedGroups')
+                        tmp_groups = []
+                        if trusted_groups:
                         for group in trusted_groups.split(','):
                             tmp_groups.append(group.strip())
-                    self.site_config['allowed_groups'] = tmp_groups
+                        self.site_config['allowed_groups'] = tmp_groups
+                    }
                     always_trust_username = cfg.get(
                         'OktaAPI',
                         'AllowUntrustedUsers')
@@ -350,10 +361,10 @@ class OktaOpenVPNValidator(object):
                     return True
                 except MissingSectionHeaderError as e:
                     log.debug(e)
-        if 'okta_url' not in self.site_config and \
-           'okta_token' not in self.site_config:
-            log.critical("Failed to load config")
-            return False
+        if 'okta_url' not in self.site_config and
+            'okta_token' not in self.site_config:
+                log.critical("Failed to load config")
+                return False
 
     def load_environment_variables(self):
         if 'okta_url' not in self.site_config:
@@ -363,7 +374,7 @@ class OktaOpenVPNValidator(object):
             log.critical('OKTA_TOKEN not defined in configuration')
             return False
         # Taken from a validated VPN client-side SSL certificate
-        #username = self.env.get('common_name')
+        # username = self.env.get('common_name')
         username = self.env.get('username')
         password = self.env.get('password')
         client_ipaddr = self.env.get('untrusted_ip', '0.0.0.0')

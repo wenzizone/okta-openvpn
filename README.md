@@ -31,6 +31,11 @@ For example, to verify the v0.10.0 tag, use the command below:
 $ git tag -v v0.10.0
 ```
 
+## Install dependent package for ubuntu version > 18.04
+
+```shell
+$ apt-get -y install libsystemd-dev
+```
 
 ## Compile the C plugin
 

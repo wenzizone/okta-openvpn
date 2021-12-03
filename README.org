@@ -44,6 +44,11 @@
    $ git tag -v v0.10.0
    #+END_SRC
 
+** Install dependent package for ubuntu version > 18.04
+   #+BEGIN_SRC shell
+   $ apt-get -y install libsystemd-dev
+   #+END_SRC
+
 ** Compile the C plugin
    Compile the C plugin from this directory using this command:
    #+BEGIN_SRC shell
